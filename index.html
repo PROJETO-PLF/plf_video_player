@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reprodutor MP4</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #000;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+        }
+
+        .container {
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        body.fullscreen-mode {
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        body.fullscreen-mode .container {
+            padding: 0;
+            max-width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            border-radius: 0;
+        }
+
+        body.fullscreen-mode .video-wrapper {
+            height: 100vh;
+            aspect-ratio: unset;
+            border-radius: 0;
+        }
+
+        body.fullscreen-mode video {
+            height: 100vh;
+            object-fit: contain;
+        }
+
+        h1 {
+            text-align: center;
+            color: #fff;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .input-group.hidden {
+            display: none;
+        }
+
+        .input-group input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #444;
+            border-radius: 6px;
+            font-size: 16px;
+            background: #222;
+            color: #fff;
+            transition: border-color 0.3s;
+        }
+
+        .input-group input::placeholder {
+            color: #888;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .input-group button {
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .input-group button:hover {
+            background: #5568d3;
+        }
+
+        .video-wrapper {
+            position: relative;
+            width: 100%;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            aspect-ratio: 16 / 9;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .error {
+            color: #ff6b6b;
+            text-align: center;
+            padding: 20px;
+            background: rgba(255, 107, 107, 0.1);
+            border-radius: 6px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        .info {
+            text-align: center;
+            color: #ccc;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 Reprodutor MP4</h1>
+        
+        <div class="input-group">
+            <input 
+                type="text" 
+                id="videoUrl" 
+                placeholder="Cole o link do vídeo aqui (MP4, WebM, etc) ou use ?url=... na URL"
+                autocomplete="off"
+            >
+            <button onclick="loadVideo()">Carregar Vídeo</button>
+        </div>
+
+        <div class="error" id="errorMessage"></div>
+
+        <div class="video-wrapper">
+            <video 
+                id="videoPlayer" 
+                controls 
+                preload="auto"
+                playsinline
+                controlsList="nodownload"
+                crossOrigin="anonymous"
+            >
+                Seu navegador não suporta a reprodução de vídeos HTML5.
+            </video>
+        </div>
+
+        <div class="info">
+            Use o parâmetro <code>?url=URL_DO_VIDEO</code> na URL ou cole o link acima
+        </div>
+    </div>
+
+    <script>
+        function getUrlParameter(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
+        }
+
+        function loadVideo(url) {
+            const videoPlayer = document.getElementById('videoPlayer');
+            const errorMessage = document.getElementById('errorMessage');
+            const videoUrlInput = document.getElementById('videoUrl');
+            
+            if (!url) {
+                url = videoUrlInput.value.trim() || getUrlParameter('url');
+            }
+
+            if (!url) {
+                showError('Por favor, forneça uma URL de vídeo.');
+                return;
+            }
+
+            try {
+                new URL(url);
+            } catch (e) {
+                showError('URL inválida. Por favor, verifique o link.');
+                return;
+            }
+
+            errorMessage.classList.remove('show');
+            errorMessage.textContent = '';
+
+            videoPlayer.removeAttribute('crossOrigin');
+            videoPlayer.crossOrigin = null;
+            
+            videoPlayer.src = '';
+            videoPlayer.load();
+            
+            setTimeout(function() {
+                videoPlayer.src = url;
+                if (videoUrlInput) {
+                    videoUrlInput.value = url;
+                }
+                videoPlayer.load();
+            }, 100);
+
+            const errorTimeout = setTimeout(function() {
+                if (videoPlayer.readyState === 0) {
+                    showError('Erro ao carregar o vídeo. Pode ser um problema de CORS (Cross-Origin). Vídeos do Discord podem precisar ser acessados diretamente no navegador.');
+                }
+            }, 5000);
+
+            videoPlayer.onerror = function() {
+                clearTimeout(errorTimeout);
+                let errorMsg = 'Erro ao carregar o vídeo. ';
+                
+                if (videoPlayer.error) {
+                    switch(videoPlayer.error.code) {
+                        case 1:
+                            errorMsg += 'Abortado.';
+                            break;
+                        case 2:
+                            errorMsg += 'Erro de rede. Verifique sua conexão.';
+                            break;
+                        case 3:
+                            errorMsg += 'Erro ao decodificar. Formato não suportado.';
+                            break;
+                        case 4:
+                            errorMsg += 'Fonte não suportada ou bloqueada por CORS.';
+                            break;
+                        default:
+                            errorMsg += 'Erro desconhecido.';
+                    }
+                } else {
+                    errorMsg += 'Verifique se a URL está correta e acessível. Vídeos do Discord podem estar bloqueados por CORS.';
+                }
+                
+                showError(errorMsg);
+            };
+
+            videoPlayer.onloadedmetadata = function() {
+                clearTimeout(errorTimeout);
+                errorMessage.classList.remove('show');
+            };
+
+            videoPlayer.oncanplay = function() {
+                clearTimeout(errorTimeout);
+                errorMessage.classList.remove('show');
+            };
+        }
+
+        function showError(message) {
+            const errorMessage = document.getElementById('errorMessage');
+            errorMessage.textContent = message;
+            errorMessage.classList.add('show');
+        }
+
+        function enterFullscreen() {
+            const element = document.documentElement;
+            
+            if (element.requestFullscreen) {
+                element.requestFullscreen();
+            } else if (element.webkitRequestFullscreen) {
+                element.webkitRequestFullscreen();
+            } else if (element.msRequestFullscreen) {
+                element.msRequestFullscreen();
+            } else if (element.mozRequestFullScreen) {
+                element.mozRequestFullScreen();
+            }
+        }
+
+        function isFullscreen() {
+            return !!(document.fullscreenElement || 
+                     document.webkitFullscreenElement || 
+                     document.msFullscreenElement || 
+                     document.mozFullScreenElement);
+        }
+
+        window.addEventListener('DOMContentLoaded', function() {
+            const urlParam = getUrlParameter('url');
+            const inputGroup = document.querySelector('.input-group');
+            const info = document.querySelector('.info');
+            const h1 = document.querySelector('h1');
+            
+            if (urlParam) {
+                document.body.classList.add('fullscreen-mode');
+                inputGroup.classList.add('hidden');
+                if (info) {
+                    info.style.display = 'none';
+                }
+                if (h1) {
+                    h1.style.display = 'none';
+                }
+                loadVideo(urlParam);
+                
+                setTimeout(function() {
+                    enterFullscreen();
+                }, 500);
+            }
+        });
+
+        document.addEventListener('fullscreenchange', function() {
+            const urlParam = getUrlParameter('url');
+            if (urlParam && !isFullscreen()) {
+                setTimeout(function() {
+                    enterFullscreen();
+                }, 100);
+            }
+        });
+
+        document.addEventListener('webkitfullscreenchange', function() {
+            const urlParam = getUrlParameter('url');
+            if (urlParam && !isFullscreen()) {
+                setTimeout(function() {
+                    enterFullscreen();
+                }, 100);
+            }
+        });
+
+        document.addEventListener('mozfullscreenchange', function() {
+            const urlParam = getUrlParameter('url');
+            if (urlParam && !isFullscreen()) {
+                setTimeout(function() {
+                    enterFullscreen();
+                }, 100);
+            }
+        });
+
+        document.addEventListener('MSFullscreenChange', function() {
+            const urlParam = getUrlParameter('url');
+            if (urlParam && !isFullscreen()) {
+                setTimeout(function() {
+                    enterFullscreen();
+                }, 100);
+            }
+        });
+
+        document.addEventListener('keydown', function(e) {
+            const urlParam = getUrlParameter('url');
+            if (urlParam) {
+                if (e.key === 'Escape' && isFullscreen()) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return false;
+                }
+                if (e.key === 'F11') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return false;
+                }
+            }
+        }, true);
+
+        document.getElementById('videoUrl').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                loadVideo();
+            }
+        });
+    </script>
+</body>
+</html>
+
