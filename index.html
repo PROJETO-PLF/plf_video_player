@@ -181,8 +181,49 @@
 
     <script>
         function getUrlParameter(name) {
-            const urlParams = new URLSearchParams(window.location.search);
-            return urlParams.get(name);
+            const search = window.location.search.substring(1);
+            const nameEq = name + '=';
+            const index = search.indexOf(nameEq);
+            
+            if (index === -1) {
+                return null;
+            }
+            
+            let value = search.substring(index + nameEq.length);
+            
+            if (name === 'url' && value.indexOf('http') === 0) {
+                const parts = value.split('&');
+                let reconstructedUrl = parts[0];
+                
+                for (let i = 1; i < parts.length; i++) {
+                    const testUrl = reconstructedUrl + '&' + parts[i];
+                    try {
+                        const url = new URL(testUrl);
+                        if (url.protocol === 'http:' || url.protocol === 'https:') {
+                            reconstructedUrl = testUrl;
+                        } else {
+                            break;
+                        }
+                    } catch (e) {
+                        reconstructedUrl = testUrl;
+                    }
+                }
+                
+                try {
+                    const url = new URL(reconstructedUrl);
+                    if (url.protocol === 'http:' || url.protocol === 'https:') {
+                        return reconstructedUrl;
+                    }
+                } catch (e) {
+                }
+            }
+            
+            const ampIndex = value.indexOf('&');
+            if (ampIndex !== -1) {
+                value = value.substring(0, ampIndex);
+            }
+            
+            return decodeURIComponent(value);
         }
 
         function loadVideo(url) {
